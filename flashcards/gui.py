@@ -13,8 +13,9 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
+from kivy.lang import Builder
 
-from deck import Deck, Card
+from flashcards.deck import Deck, Card
 
 
 class DecksScreen(Screen):
@@ -57,7 +58,7 @@ class DecksScreen(Screen):
 
     def save_deck(self, new_filename):
         # TODO check for correct filename characters
-        new_path = os.path.join('decks', new_filename + '.csv')
+        new_path = os.path.join('flashcards', 'decks', new_filename + '.csv')
         with open(new_path, 'x') as f:
             # TODO catch error if the file already exists
             f.write('Front\tBack')
@@ -67,14 +68,14 @@ class DecksScreen(Screen):
 
     def view_deck(self):
         deck_name = self.ids.deck_rv.selected_row
-        deck_filename = os.path.join('decks/', deck_name + '.csv')
+        deck_filename = os.path.join('flashcards', 'decks', deck_name + '.csv')
         self.manager.get_screen('Cards').current_deck = \
             Deck(filename=deck_filename)
         self.manager.current = 'Cards'
 
     def study(self):
         deck_name = self.ids.deck_rv.selected_row
-        deck_filename = os.path.join('decks/', deck_name + '.csv')
+        deck_filename = os.path.join('flashcards', 'decks', deck_name + '.csv')
         deck = Deck(filename=deck_filename)
         deck.shuffle()
         study_screen = self.manager.get_screen('Study')
@@ -282,9 +283,9 @@ class DeckRV(RecycleView):
 
     def _decks_data(self):
         data = []
-        cwd = os.getcwd()
-        for d in os.listdir('decks/'):
-            deck_path = os.path.join(cwd, 'decks', d)
+        deck_dir = os.path.join('flashcards', 'decks')
+        for d in os.listdir(deck_dir):
+            deck_path = os.path.join(deck_dir, d)
             if os.path.isfile(deck_path):
                 data.append({'deck_name': d[:-4],
                              'num_of_cards': str(self._count_cards(deck_path))})
@@ -292,7 +293,7 @@ class DeckRV(RecycleView):
         return sorted(data, key=lambda x: x['deck_name'])
 
 
-class ScreensApp(App):
+class FlashcardApp(App):
 
     def build(self):
         sm = ScreenManager(transition=NoTransition())
@@ -302,5 +303,10 @@ class ScreensApp(App):
         return sm
 
 
+def main():
+    Builder.load_file(os.path.join('flashcards', 'screens.kv'))
+    FlashcardApp().run()
+
+
 if __name__ == '__main__':
-    ScreensApp().run()
+    main()
