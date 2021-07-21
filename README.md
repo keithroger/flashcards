@@ -10,3 +10,4 @@ flashcards
 ```
 
 ## About
+Flashcards is a simple gui program to save, edit, and study flashcards.
