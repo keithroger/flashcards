@@ -1,310 +1,319 @@
-import os
-import random
-from kivy.app import App
-from kivy.uix.screenmanager import ScreenManager, Screen, NoTransition
-from kivy.uix.recycleview import RecycleView
-from kivy.uix.recycleview.views import RecycleDataViewBehavior
-from kivy.uix.recycleboxlayout import RecycleBoxLayout
-from kivy.uix.behaviors import FocusBehavior
-from kivy.uix.recycleview.layout import LayoutSelectionBehavior
-from kivy.uix.popup import Popup
-from kivy.properties import BooleanProperty, StringProperty
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
-from kivy.uix.button import Button
-from kivy.uix.textinput import TextInput
+from os import rename
+from os.path import join
+
 from kivy.lang import Builder
+from kivy.properties import StringProperty, ObjectProperty
+from kivy.uix.behaviors import ButtonBehavior
+from kivy.uix.screenmanager import ScreenManager, NoTransition
 
-from flashcards.deck import Deck, Card
+from kivymd.app import MDApp
+from kivymd.uix.bottomsheet import MDCustomBottomSheet
+from kivymd.uix.button import MDFlatButton, MDFloatingActionButton
+from kivymd.uix.card import MDCardSwipe
+from kivymd.uix.dialog import MDDialog
+from kivymd.uix.list import OneLineListItem, TwoLineListItem
+from kivymd.uix.gridlayout import GridLayout
+from kivymd.uix.label import MDLabel
+from kivymd.uix.boxlayout import BoxLayout
+from kivymd.uix.textfield import MDTextField
+from kivymd.uix.screen import MDScreen
+from kivymd.uix.anchorlayout import AnchorLayout
+
+from flashcards.deck import Deck, decks_list, del_deck, deck_path
 
 
-class DecksScreen(Screen):
-    def new_deck(self):
-        content = self._new_deck_dialog()
-        self.popup = Popup(title='New Deck',
-                           content=content,
-                           size_hint_y=None,
-                           height=150,
-                           size_hint_x=0.6)
-        self.popup.open()
+class SheetButton(ButtonBehavior, BoxLayout):
+    text = StringProperty()
+    on_release = ObjectProperty()
+    icon = StringProperty()
 
-    def _new_deck_dialog(self):
-        content = BoxLayout(orientation='vertical')
-        title_label = Label(text='Enter a Deck Name',
-                            size_hint_y=None,
-                            height=30)
-        error_label = Label(text='',
-                            size_hint_y=None,
-                            height=30)
-        content.add_widget(title_label)
-        content.add_widget(error_label)
+    def __init__(self, text, on_release, icon):
+        super(SheetButton, self).__init__()
+        self.text = text
+        self.icon = icon
+        self.on_release = on_release
 
-        box = BoxLayout(orientation='horizontal',
-                        size_hint_y=None,
-                        height=30)
-        text_input = TextInput(multiline=False,
-                               # focus=True,
-                               on_text_validate=lambda x: self.save_deck(text_input.text))
-        save_btn = Button(text='Save',
-                          size_hint_x=None,
-                          width=70,
-                          on_release=lambda x: self.save_deck(text_input.text))
-        box.add_widget(text_input)
-        box.add_widget(save_btn)
 
-        content.add_widget(box)
+class DialogLayout(BoxLayout):
+    def __init__(self, **kwargs):
+        super(DialogLayout, self).__init__(**kwargs)
+        self.orientation = 'vertical'
+        self.padding = (0, '30dp', 0, 0)
+        self.size_hint_y = None
 
-        return content
 
-    def save_deck(self, new_filename):
-        # TODO check for correct filename characters
-        new_path = os.path.join('flashcards', 'decks', new_filename + '.csv')
-        with open(new_path, 'x') as f:
-            # TODO catch error if the file already exists
-            f.write('Front\tBack')
-        self.ids.deck_rv.data.append({'deck_name': new_filename,
-                                      'num_of_cards': '0'})
-        self.popup.dismiss()
+class DecksScreen(MDScreen):
+    def on_enter(self):
+        super().on_enter(self)
+        self.refresh()
+        self.selection = None
 
-    def view_deck(self):
-        deck_name = self.ids.deck_rv.selected_row
-        deck_filename = os.path.join('flashcards', 'decks', deck_name + '.csv')
-        self.manager.get_screen('Cards').current_deck = \
-            Deck(filename=deck_filename)
-        self.manager.current = 'Cards'
+    def item_click(self, deck):
+        print('item clicked: ', deck)
+        self.selection = deck
+        grid = GridLayout(cols=5)
+        grid.adaptive_size = True
+        grid.add_widget(SheetButton('Study', self.study, 'cards'))
+        grid.add_widget(SheetButton('View', self.view, 'eye'))
+        grid.add_widget(SheetButton('Rename', self.rename, 'lead-pencil'))
+        grid.add_widget(SheetButton('Stats', self.stats, 'chart-bar'))
+        grid.add_widget(SheetButton('Delete', self.delete,
+                                    'trash-can-outline'))
+        self.bottom_menu = MDCustomBottomSheet(screen=grid)
+        self.bottom_menu.open()
+
+    def add(self):
+        content = DialogLayout()
+        self.field = MDTextField(hint_text='Name')
+        content.add_widget(self.field)
+        buttons = [MDFlatButton(text='Save',
+                                on_release=lambda x: self.save(new=True)),
+                   MDFlatButton(text='Cancel',
+                                on_release=lambda x: self.dialog.dismiss())]
+        self.dialog = MDDialog(title='New Deck',
+                               type='custom',
+                               content_cls=content,
+                               buttons=buttons)
+        self.dialog.open()
+
+    def save(self, new):
+        if new:
+            new_path = join('flashcards', 'decks', self.field.text + '.csv')
+            with open(new_path, 'x') as f:
+                f.write('Front\tBack')
+        else:
+            rename(deck_path(self.selection), deck_path(self.field.text))
+
+        self.refresh()
+        self.dialog.dismiss()
+        self.bottom_menu.dismiss()
 
     def study(self):
-        deck_name = self.ids.deck_rv.selected_row
-        deck_filename = os.path.join('flashcards', 'decks', deck_name + '.csv')
-        deck = Deck(filename=deck_filename)
-        deck.shuffle()
-        study_screen = self.manager.get_screen('Study')
-        study_screen.current_deck = deck
-        study_screen.text = deck.cards[0].front
-        study_screen.is_front = True
-        study_screen.index = 0
         self.manager.current = 'Study'
+        self.manager.get_screen('Study').deck = Deck(deck_path(self.selection))
+        self.bottom_menu.dismiss()
+
+    def view(self):
+        self.manager.get_screen('View').deck = Deck(deck_path(self.selection))
+        print('Pressed view with deck: ', self.selection)
+        self.manager.current = 'View'
+        self.bottom_menu.dismiss()
+
+    def rename(self):
+        content = DialogLayout()
+        self.field = MDTextField(hint_text='Name', text=self.selection)
+        content.add_widget(self.field)
+        buttons = [MDFlatButton(text='Save',
+                                on_release=lambda x: self.save(new=False)),
+                   MDFlatButton(text='Cancel',
+                                on_release=lambda x: self.dialog.dismiss())]
+        self.dialog = MDDialog(title='Rename Deck',
+                               type='custom',
+                               content_cls=content,
+                               buttons=buttons)
+        self.dialog.open()
+
+    def stats(self):
+        pass
+
+    def delete(self):
+        del_deck(self.selection)
+        self.bottom_menu.dismiss()
+        self.refresh()
+
+    def refresh(self):
+        self.ids.md_list.clear_widgets()
+        for deck in decks_list():
+            print(deck)
+            self.ids.md_list.add_widget(
+                OneLineListItem(
+                    text=f'{deck}',
+                    on_release=lambda x, y=deck: self.item_click(y),
+                    _no_ripple_effect=True))
 
 
-class CardsScreen(Screen):
-    def __init__(self, **kwargs):
-        super(CardsScreen, self).__init__(**kwargs)
-        self.current_deck = None
-        self.selected_row = None
-
-    def new_card(self):
-        content = self._new_card_dialog()
-        self.popup = Popup(title='New Card',
-                           content=content,
-                           size_hint_y=None,
-                           height=150,
-                           size_hint=(0.6, 0.6))
-        self.popup.open()
-
-    def _new_card_dialog(self):
-        content = BoxLayout(orientation='vertical')
-        front_label = Label(text='Front',
-                            size_hint_y=None,
-                            height=30)
-        front_input = TextInput()
-        back_label = Label(text='Back',
-                           size_hint_y=None,
-                           height=30)
-        back_input = TextInput()
-        btns = BoxLayout(orientation='horizontal')
-        save_btn = Button(text='Save',  # try lamda without the x
-                          on_release=lambda x: self.save_card(front_input.text,
-                                                              back_input.text))
-        cancel_btn = Button(text='Cancel')
-        btns.add_widget(save_btn)
-        btns.add_widget(cancel_btn)
-
-        content.add_widget(front_label)
-        content.add_widget(front_input)
-        content.add_widget(back_label)
-        content.add_widget(back_input)
-        content.add_widget(btns)
-
-        return content
-
-    def save_card(self, front, back):
-        self.current_deck.add_card(front, back)
-        self.ids.card_rv.data.append({'front': front,
-                                      'back': back})
-        self.popup.dismiss()
-
-    def on_pre_enter(self):
-        super(CardsScreen, self).on_pre_enter()
-        self.ids.card_rv.data = self._cards_data()
-
-    def _cards_data(self):
-        data = []
-        for card in self.current_deck:
-            data.append({'front': card.front,
-                        'back': card.back})
-        return data
-
-    def del_card(self):
-        row = self.ids.card_rv.selected_row
-        card = Card(row['front'], row['back'])
-        self.current_deck.del_card(card)
-        self.ids.card_rv.data.remove(row)
-        print('row: ', row)
-        print('cards: ', self.current_deck.cards)
+class EditRow(MDCardSwipe):
+    """Swipe behavior for list item"""
+    text = StringProperty()
+    screen = ObjectProperty()
 
 
-class StudyScreen(Screen):
-    text = StringProperty('')
+class ViewScreen(MDScreen):
+    def __init(self, **kwargs):
+        super().__init__(self, **kwargs)
+        self.deck = None
+        self.card = None
 
-    def __init__(self, **kwargs):
-        super(StudyScreen, self).__init__(**kwargs)
-        self.current_deck = None
-        self.is_front = None
-        self.index = None
+    def on_enter(self):
+        super().on_enter(self)
+        print('entered viewscreen with deck: ', self.deck)
+        self.refresh()
+
+    def item_click(self, card):
+        self.card = card
+        grid = GridLayout(cols=5)
+        grid.adaptive_size = True
+        grid.add_widget(SheetButton('Edit',
+                                    self.edit,
+                                    'lead-pencil'))
+        grid.add_widget(SheetButton('Stats',
+                                    self.stats,
+                                    'chart-bar'))
+        grid.add_widget(SheetButton('Delete',
+                                    self.delete,
+                                    'trash-can-outline'))
+        self.bottom_menu = MDCustomBottomSheet(screen=grid)
+        self.bottom_menu.open()
+
+    def add(self):
+        content = DialogLayout()
+        self.term_field = MDTextField(hint_text='Term')
+        self.def_field = MDTextField(hint_text='Definition', multiline=True)
+        content.add_widget(self.term_field)
+        content.add_widget(self.def_field)
+        buttons = [MDFlatButton(text='Save',
+                                on_release=lambda x: self.save(new=True)),
+                   MDFlatButton(text='Cancel',
+                                on_release=lambda x: self.dialog.dismiss())]
+        self.dialog = MDDialog(title='New Card',
+                               type='custom',
+                               content_cls=content,
+                               buttons=buttons)
+        self.dialog.open()
+
+    def save(self, new):
+        self.deck.add_card(self.term_field.text, self.def_field.text)
+        if not new:
+            self.deck.del_card(self.card)
+        self.refresh()
+        self.dialog.dismiss()
+
+    def stats(self):
+        pass
+
+    def delete(self):
+        self.deck.del_card(self.card)
+        self.refresh()
+        self.bottom_menu.dismiss()
+
+    def refresh(self):
+        self.ids.md_list.clear_widgets()
+        for card in self.deck:
+            self.ids.md_list.add_widget(
+                TwoLineListItem(
+                    text=f'{card.term}',
+                    secondary_text=f'{card.definition}',
+                    on_release=lambda x, y=card: self.item_click(y),
+                    _no_ripple_effect=True))
+
+    def edit(self):
+        self.bottom_menu.dismiss()
+        content = DialogLayout()
+        self.term_field = MDTextField(hint_text='Term', text=self.card.term)
+        self.def_field = MDTextField(hint_text='Definition',
+                                     text=self.card.definition,
+                                     multiline=True)
+        content.add_widget(self.term_field)
+        content.add_widget(self.def_field)
+        buttons = [MDFlatButton(text='Save',
+                                on_release=lambda x: self.save(new=False)),
+                   MDFlatButton(text='Cancel',
+                                on_release=lambda x: self.dialog.dismiss())]
+        self.dialog = MDDialog(title='Edit Card',
+                               type='custom',
+                               content_cls=content,
+                               buttons=buttons)
+        self.dialog.open()
+
+    def back(self):
+        self.manager.current = 'Decks'
+
+
+class StudyScreen(MDScreen, MDLabel):
+    text = StringProperty()
+
+    def on_enter(self):
+        super().on_enter(self)
+        self.cards_left = self.deck.shuffle()
+        self.curr_card = self.cards_left.pop()
+        self.text = self.curr_card.term
+        self.flipped = False
+        self.c_btn = MDFloatingActionButton(icon='check-bold',
+                                            pos_hint={'center_x': 0.65,
+                                                      'center_y': 0.1},
+                                            on_release=lambda x: self.correct())
+        self.i_btn = MDFloatingActionButton(icon='close-thick',
+                                            pos_hint={'center_x': 0.35,
+                                                      'center_y': 0.1},
+                                            on_release=lambda x: self.incorrect())
+        if self.c_btn.parent:
+            self.remove(self.c_btn)
+            self.remove(self.i_btn)
 
     def flip(self):
-        if self.is_front:
-            self.text = self.current_deck.cards[self.index].back
-            self.is_front = False
+        if self.flipped:
+            self.text = self.curr_card.term
+            self.flipped = False
+
         else:
-            self.text = self.current_deck.cards[self.index].front
-            self.is_front = True
+            self.text = self.curr_card.definition
+            if not self.c_btn.parent:
+                self.add_widget(self.c_btn)
+                self.add_widget(self.i_btn)
+            self.flipped = True
 
-    def next(self):
-        print('cards: ', len(self.current_deck.cards))
-        print('index: ', self.index)
-        if self.index < len(self.current_deck.cards) - 1:
-            self.index += 1
-            self.is_front = True
-            self.text = self.current_deck.cards[self.index].front
+    def correct(self):
+        self.next_card()
+
+    def incorrect(self):
+        self.cards_left.append(self.curr_card)
+        self.next_card()
+
+    def next_card(self):
+        self.remove_widget(self.c_btn)
+        self.remove_widget(self.i_btn)
+        if self.cards_left:
+            self.curr_card = self.cards_left.pop()
+            self.text = self.curr_card.term
+            self.flipped = False
         else:
-            self.text = 'Deck Finished'
+            self.popup()
 
-    def prev(self):
-        if self.index > 0:
-            self.index -= 1
-            self.is_front = True
-            self.text = self.current_deck.cards[self.index].front
+    def popup(self):
+        self.dialog = MDDialog(
+            title='Retry?',
+            buttons=[
+                MDFlatButton(text='No',
+                             on_release=lambda x: self.dialog.dismiss()),
+                MDFlatButton(text='Yes',
+                             on_release=lambda x: self.retry())])
+        self.dialog.open()
 
+    def retry(self):
+        self.cards_left = self.deck.shuffle()
+        self.curr_card = self.cards_left.pop()
+        self.text = self.curr_card.term
+        self.flipped = False
+        self.dialog.dismiss()
 
-class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior,
-                                 RecycleBoxLayout):
-    ''' Adds selection and focus behaviour to the view. '''
-
-
-class CardRow(RecycleDataViewBehavior, BoxLayout):
-    ''' Add selection support to the Label '''
-    index = None
-    selected = BooleanProperty(False)
-    selectable = BooleanProperty(True)
-    front = StringProperty('')
-    back = StringProperty('')
-
-    def refresh_view_attrs(self, rv, index, data):
-        ''' Catch and handle the view changes '''
-        self.index = index
-        return super(CardRow, self).refresh_view_attrs(
-            rv, index, data)
-
-    def on_touch_down(self, touch):
-        ''' Add selection on touch down '''
-        if super(CardRow, self).on_touch_down(touch):
-            return True
-        if self.collide_point(*touch.pos) and self.selectable:
-            return self.parent.select_with_touch(self.index, touch)
-
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected:
-            print("selection changed to {0}".format(rv.data[index]))
-#             self.parent.parent.selected_row = rv.data[index]
-            rv.selected_row = rv.data[index]
-            print(rv)
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
+    def back(self):
+        self.manager.current = 'Decks'
 
 
-class DeckRow(RecycleDataViewBehavior, BoxLayout):
-    ''' Add selection support to the Label '''
-    index = None
-    selected = BooleanProperty(False)
-    selectable = BooleanProperty(True)
-    deck_name = StringProperty('')
-    num_of_cards = StringProperty('')
-
-    def refresh_view_attrs(self, rv, index, data):
-        ''' Catch and handle the view changes '''
-        self.index = index
-        return super(DeckRow, self).refresh_view_attrs(
-            rv, index, data)
-
-    def on_touch_down(self, touch):
-        ''' Add selection on touch down '''
-        if super(DeckRow, self).on_touch_down(touch):
-            return True
-        if self.collide_point(*touch.pos) and self.selectable:
-            return self.parent.select_with_touch(self.index, touch)
-
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected:
-            print("selection changed to {0}".format(rv.data[index]))
-#             self.parent.parent.selected_row = rv.data[index]['deck_name']
-            rv.selected_row = rv.data[index]['deck_name']
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
-
-
-class CardRV(RecycleView):
-
-    def __init__(self, **kwargs):
-        super(CardRV, self).__init__(**kwargs)
-        self.data = []
-        self.selected_row = None
-
-
-
-class DeckRV(RecycleView):
-    def __init__(self, **kwargs):
-        super(DeckRV, self).__init__(**kwargs)
-        self.data = self._decks_data()
-        self.selected_row = None
-
-    @staticmethod
-    def _count_cards(filename):
-        with open(filename) as f:
-            line_count = 0
-            for line in f:
-                line_count += 1
-
-            return line_count - 1 if line_count > 1 else 0
-
-    def _decks_data(self):
-        data = []
-        deck_dir = os.path.join('flashcards', 'decks')
-        for d in os.listdir(deck_dir):
-            deck_path = os.path.join(deck_dir, d)
-            if os.path.isfile(deck_path):
-                data.append({'deck_name': d[:-4],
-                             'num_of_cards': str(self._count_cards(deck_path))})
-        # return sorted data
-        return sorted(data, key=lambda x: x['deck_name'])
-
-
-class FlashcardApp(App):
+class FlashcardApp(MDApp):
 
     def build(self):
+        self.theme_cls.primary_palette = 'DeepPurple'
+        self.theme_cls.theme_style = 'Dark'
         sm = ScreenManager(transition=NoTransition())
         sm.add_widget(DecksScreen(name='Decks'))
-        sm.add_widget(CardsScreen(name='Cards'))
+        sm.add_widget(ViewScreen(name='View'))
         sm.add_widget(StudyScreen(name='Study'))
         return sm
 
 
 def main():
-    Builder.load_file(os.path.join('flashcards', 'screens.kv'))
+    Builder.load_file(join('flashcards', 'screens.kv'))
     FlashcardApp().run()
 
 
