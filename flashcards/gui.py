@@ -37,8 +37,8 @@ class SheetButton(ButtonBehavior, BoxLayout):
 class DialogLayout(BoxLayout):
     def __init__(self, **kwargs):
         super(DialogLayout, self).__init__(**kwargs)
+#         self.cols = 1
         self.orientation = 'vertical'
-        self.padding = (0, '30dp', 0, 0)
         self.size_hint_y = None
 
 
@@ -49,7 +49,6 @@ class DecksScreen(MDScreen):
         self.selection = None
 
     def item_click(self, deck):
-        print('item clicked: ', deck)
         self.selection = deck
         grid = GridLayout(cols=5)
         grid.adaptive_size = True
@@ -94,7 +93,6 @@ class DecksScreen(MDScreen):
 
     def view(self):
         self.manager.get_screen('View').deck = Deck(deck_path(self.selection))
-        print('Pressed view with deck: ', self.selection)
         self.manager.current = 'View'
         self.bottom_menu.dismiss()
 
@@ -123,7 +121,6 @@ class DecksScreen(MDScreen):
     def refresh(self):
         self.ids.md_list.clear_widgets()
         for deck in decks_list():
-            print(deck)
             self.ids.md_list.add_widget(
                 OneLineListItem(
                     text=f'{deck}',
@@ -169,7 +166,6 @@ class ViewScreen(MDScreen):
 
     def on_enter(self):
         super().on_enter(self)
-        print('entered viewscreen with deck: ', self.deck)
         self.refresh()
 
     def item_click(self, card):
