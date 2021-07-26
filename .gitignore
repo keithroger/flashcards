@@ -11,6 +11,7 @@ TODO.md
 
 # virtual environment
 venv/
+.venv/
 
 # Distribution / packaging
 .Python
