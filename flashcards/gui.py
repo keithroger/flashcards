@@ -6,6 +6,7 @@ from kivy.properties import StringProperty, ObjectProperty
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.screenmanager import ScreenManager, NoTransition
 
+from kivymd.uix.selectioncontrol import MDSwitch
 from kivymd.app import MDApp
 from kivymd.uix.bottomsheet import MDCustomBottomSheet
 from kivymd.uix.button import MDFlatButton, MDFloatingActionButton
@@ -82,10 +83,9 @@ class DecksScreen(MDScreen):
                 f.write('Front\tBack')
         else:
             rename(deck_path(self.selection), deck_path(self.field.text))
-
+            self.bottom_menu.dismiss()
         self.refresh()
         self.dialog.dismiss()
-        self.bottom_menu.dismiss()
 
     def study(self):
         self.manager.current = 'Study'
@@ -129,6 +129,30 @@ class DecksScreen(MDScreen):
                     text=f'{deck}',
                     on_release=lambda x, y=deck: self.item_click(y),
                     _no_ripple_effect=True))
+
+    def dot_menu(self):
+        content = DialogLayout()
+        item = BoxLayout(orientation='horizontal')
+        item.add_widget(MDLabel(text='Dark Theme'))
+        self.switch = MDSwitch()
+        self.switch.active = False if\
+            MDApp.get_running_app().theme_cls.theme_style == 'Light' else True
+        self.switch.on_release = self.theme_switch
+
+        item.add_widget(self.switch)
+        content.add_widget(item)
+
+        self.dialog = MDDialog(title='Settings',
+                               type='custom',
+                               content_cls=content,
+                               buttons=[])
+        self.dialog.open()
+
+    def theme_switch(self):
+        MDApp.get_running_app().theme_cls.theme_style = 'Light' if\
+            MDApp.get_running_app().theme_cls.theme_style == 'Dark'\
+            else 'Dark'
+#         self.switch.active = not self.switch.active
 
 
 class EditRow(MDCardSwipe):
@@ -303,7 +327,7 @@ class FlashcardApp(MDApp):
 
     def build(self):
         self.theme_cls.primary_palette = 'DeepPurple'
-        self.theme_cls.theme_style = 'Dark'
+        self.theme_cls.theme_style = 'Light'
         sm = ScreenManager(transition=NoTransition())
         sm.add_widget(DecksScreen(name='Decks'))
         sm.add_widget(ViewScreen(name='View'))
