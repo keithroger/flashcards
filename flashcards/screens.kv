@@ -45,18 +45,22 @@
             title: 'Deck Name'
             left_action_items: [['arrow-left', lambda x: root.back()]]
 
-        MDCard:
-            orientation: 'vertical'
-            padding: '50dp'
-            size_hint: 1, 1
-            pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+        AnchorLayout
+            anchor_x: 'center'
+            anchor_y: 'center'
 
-            MDLabel:
-                text: root.text
-                halign: 'center'
-#                 valign: 'center'
-#                 adaptive_size: True
-#                 padding_y: '50dp'
+            MDCard:
+                orientation: 'vertical'
+#             padding: '50dp'
+                size_hint: 0.6, 0.6 
+                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+
+                MDLabel:
+                    id: md_label
+                    text: ''
+                    halign: "center"
+        BoxLayout:
+            size_hint_y: 0.1
 
     MDFloatingActionButton:
         icon: 'rotate-right'

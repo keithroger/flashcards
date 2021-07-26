@@ -1,5 +1,6 @@
 from os import rename
 from os.path import join
+from collections import deque
 
 from kivy.lang import Builder
 from kivy.properties import StringProperty, ObjectProperty
@@ -253,9 +254,9 @@ class StudyScreen(MDScreen, MDLabel):
 
     def on_enter(self):
         super().on_enter(self)
-        self.cards_left = self.deck.shuffle()
+        self.cards_left = deque(self.deck.shuffle())
         self.curr_card = self.cards_left.pop()
-        self.text = self.curr_card.term
+        self.ids.md_label.text = self.curr_card.term
         self.flipped = False
         self.c_btn = MDFloatingActionButton(icon='check-bold',
                                             pos_hint={'center_x': 0.65,
@@ -271,11 +272,11 @@ class StudyScreen(MDScreen, MDLabel):
 
     def flip(self):
         if self.flipped:
-            self.text = self.curr_card.term
+            self.ids.md_label.text = self.curr_card.term
             self.flipped = False
 
         else:
-            self.text = self.curr_card.definition
+            self.ids.md_label.text = self.curr_card.definition
             if not self.c_btn.parent:
                 self.add_widget(self.c_btn)
                 self.add_widget(self.i_btn)
@@ -285,7 +286,7 @@ class StudyScreen(MDScreen, MDLabel):
         self.next_card()
 
     def incorrect(self):
-        self.cards_left.append(self.curr_card)
+        self.cards_left.appendleft(self.curr_card)
         self.next_card()
 
     def next_card(self):
@@ -293,7 +294,7 @@ class StudyScreen(MDScreen, MDLabel):
         self.remove_widget(self.i_btn)
         if self.cards_left:
             self.curr_card = self.cards_left.pop()
-            self.text = self.curr_card.term
+            self.ids.md_label.text = self.curr_card.term
             self.flipped = False
         else:
             self.popup()
@@ -303,17 +304,21 @@ class StudyScreen(MDScreen, MDLabel):
             title='Retry?',
             buttons=[
                 MDFlatButton(text='No',
-                             on_release=lambda x: self.dialog.dismiss()),
+                             on_release=lambda x: self.noretry()),
                 MDFlatButton(text='Yes',
                              on_release=lambda x: self.retry())])
         self.dialog.open()
 
     def retry(self):
-        self.cards_left = self.deck.shuffle()
+        self.cards_left = deque(self.deck.shuffle())
         self.curr_card = self.cards_left.pop()
-        self.text = self.curr_card.term
+        self.ids.md_label.text = self.curr_card.term
         self.flipped = False
         self.dialog.dismiss()
+
+    def noretry(self):
+        self.dialog.dismiss()
+        self.back()
 
     def back(self):
         self.manager.current = 'Decks'
