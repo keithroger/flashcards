@@ -17,7 +17,6 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.boxlayout import BoxLayout
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.screen import MDScreen
-from kivymd.uix.anchorlayout import AnchorLayout
 
 from flashcards.deck import Deck, decks_list, del_deck, deck_path
 
