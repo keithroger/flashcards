@@ -11,9 +11,11 @@ setup(
     packages=['flashcards'],
     install_requires=[
         'Kivy==2.0.0',
-#         'kivymd==0.104.2',
+        'kivymd==0.104.2',
     ],
     python_requires='>=3.7',
+    include_package_data=True,
+    package_data={'flashcards': ['decks/*.csv']},
     entry_points={
         'console_scripts': ['flashcards = flashcards.gui:main']
     }
