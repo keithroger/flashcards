@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='flashcards',
@@ -8,7 +8,7 @@ setup(
     author='Keith Ontiveros',
     author_email='keithontiveros@ucla.edu',
     license='MIT',
-    packages=['flashcards'],
+    packages=find_packages(),
     install_requires=[
         'Kivy==2.0.0',
         'kivymd==0.104.2',
