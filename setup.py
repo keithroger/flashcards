@@ -15,7 +15,7 @@ setup(
     ],
     python_requires='>=3.7',
     include_package_data=True,
-    package_data={'flashcards': ['decks/*.csv']},
+    package_data={'flashcards': ['decks/*.csv', 'screens.kv']},
     entry_points={
         'console_scripts': ['flashcards = flashcards.gui:main']
     }

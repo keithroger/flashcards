@@ -1,2 +1,0 @@
-recursive-include flashcards/decks *.csv
-include flashcards/screens.kv
