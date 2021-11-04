@@ -1,7 +1,9 @@
 # Flashcards
 
-![dark mode](images/dark_mode.gif)
+## Demo
+
 ![demo](images/demo.gif)
+![dark mode](images/dark_mode.gif)
 
 ## Installation
 Run the following commands in the terminal.
